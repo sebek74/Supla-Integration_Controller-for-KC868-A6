@@ -30,20 +30,29 @@ const char* relayNames [] {
   "Grzejnik łazienkowe - 8h",
   "Alarm świateł",
   "Włącz wyświetlacz 1",
-  "Włącz wyświetlacz 2" 
+  "Włącz wyświetlacz 2",
+  "Rekuperator - przewietrzanie",
+  "Duża wilgotność powietrza 1",
+  "Duża wilgotność powietrza 2",
+  "Niska jakość powietrza"
 };
 
 const char* sensorName [] {
-  "Alarm z rejestartora",
+  "Alarm z rejestrtora",
+  "Alarm z Integry",
+  "Światła z Integry",
   "Czuwanie alarmu",
   "Dzwonek do furtki",
   "Czujnik włączenia okapu",
-  "Światła z Integry",
-  "Alarm z Integry",
-  "Blokada wewnętrznych czujników"
+  "Blokada wewnętrznych czujników",
+  "Zapal światła garaż i front",
+  "Zgaś światła garaż i front",
+  "Przycisk przewietrzania"
 };
 
 extern int32_t frameId;
+
+#ifdef TEST_BOARD
 
 class HipHopBinary : public Supla::Sensor::VirtualBinary {
   public:
@@ -51,6 +60,8 @@ class HipHopBinary : public Supla::Sensor::VirtualBinary {
     return frameId%50>25;
   };
 };
+
+#endif // TEST_BOARD
 
 class ProtectedRelay : public Supla::Control::Relay {
   public:
@@ -64,69 +75,6 @@ class ProtectedRelay : public Supla::Control::Relay {
       Supla::Control::Relay::turnOn();
     }
 };
-
-class IntCtrlActionHandler : public Supla::ActionHandler {
-  public:
-    void handleAction(int event, int action) override {
-      SUPLA_LOG_DEBUG("action event: %d %d", event, action);
-      time_t now = time(nullptr);
-      struct tm* timeinfo = localtime(&now);
-      display.restoreFullContrast();
-      switch (action) {
-        case ActionId::VideoAlarmOn:
-          IntCtrlRelay::GetRelayById(RelayId::VideoRecorderAlarm)->turnOn();
-          IntCtrlRelay::GetRelayById(RelayId::VAlarmLights)->turnOn(ALARM_LIGHTS_TIME_S*1000);
-          messenger.sendMessage(MSG_VIDEORECORDER_ALARM_TRIGGER, MSG_TITLE_ALARM);
-          break;
-        case ActionId::VideoAlarmOff:
-          IntCtrlRelay::GetRelayById(RelayId::VideoRecorderAlarm)->turnOff();
-          break;
-        case ActionId::IntegraAlarmOn:
-          IntCtrlRelay::GetRelayById(RelayId::VAlarmLights)->turnOn(ALARM_LIGHTS_TIME_S*1000);
-          messenger.sendMessage(MSG_INTEGRA_ALARM_TRIGGER, MSG_TITLE_ALARM);
-          break;
-        case ActionId::IntegraAlarmOff:
-          IntCtrlRelay::GetRelayById(RelayId::VAlarmLights)->turnOff();
-          break;
-        case ActionId::IntegraArmed:
-          messenger.sendMessage(MSG_ALARM_ARMED, MSG_TITLE_ALARM, timeinfo->tm_hour, timeinfo->tm_min);
-          IntCtrlRelay::alarmArmedBlockedInternalSensors->clear();
-          break;
-        case ActionId::IntegraDisarmed:
-          messenger.sendMessage(MSG_ALARM_DISARMED, MSG_TITLE_ALARM, timeinfo->tm_hour, timeinfo->tm_min);
-          IntCtrlRelay::alarmArmedBlockedInternalSensors->clear();
-          break;
-        case ActionId::BlockInternalSensors:
-          IntCtrlRelay::alarmArmedBlockedInternalSensors->set();
-          break;
-        case ActionId::DoorBell:
-          messenger.sendMessage(MSG_GATE_BELL, MSG_TITLE_DOORSTATION, timeinfo->tm_hour, timeinfo->tm_min);
-          break;
-        case HoodOn:
-          IntCtrlRelay::GetRelayById(RelayId::AirVent_HoodMode)->turnOn();
-          IntCtrlRelay::hoodModeStart = millis();
-          break;
-        case HoodOff:
-          IntCtrlRelay::GetRelayById(RelayId::AirVent_HoodMode)->turnOff();
-          IntCtrlRelay::hoodModeStart = 0;
-          break;
-         case TurnLightsOn:
-          display.setupAction(ActionIconId::LIGHTS_ON);
-          break;
-        case TurnLightsOff:
-          display.setupAction(ActionIconId::LIGHTS_OFF);
-          break;
-        case OpenGate:
-          display.setupAction(ActionIconId::GATE_OPEN);
-          break;
-        case OpenFrontDoor:
-          display.setupAction(ActionIconId::FRONT_DOOR_OPEN);
-          break;
-        case RestoreDisplay:
-          break;
-      }
-    }
-} intCtrlActionHandler;
 
 class IntCtrlSharedRelay :  public /*Supla::Control::Relay*/IntCtrlRelay {
   private:
@@ -155,8 +103,148 @@ class IntCtrlSharedRelay :  public /*Supla::Control::Relay*/IntCtrlRelay {
     }
 };
 
-void IntCtrlRelay::RegisterRelays() {
+class IntCtrlActionHandler : public Supla::ActionHandler {
+  private:
+    int32_t lightPressTimestamp = 0;
+  public:
+    void handleAction(int event, int action) override {
+      SUPLA_LOG_DEBUG("action event: %d %d", event, action);
+      uint32_t remainingSeconds = 0;
+      time_t now = time(nullptr);
+      struct tm* timeinfo = localtime(&now);
+      display.restoreFullContrast();
+      switch (action) {
+        case ActionId::VideoAlarmOn:
+          IntCtrlRelay::GetRelayById(RelayId::VideoRecorderAlarm)->turnOn();
+          IntCtrlRelay::GetRelayById(RelayId::VAlarmLights)->turnOn(config.getLightsAlarmTimeSec()*1000);
+          messenger.sendMessage(MSG_VIDEORECORDER_ALARM_TRIGGER, MSG_TITLE_ALARM);        
+          break;
+        case ActionId::VideoAlarmOff:
+          IntCtrlRelay::GetRelayById(RelayId::VideoRecorderAlarm)->turnOff();
+          break;
+        case ActionId::IntegraAlarmOn:
+          IntCtrlRelay::GetRelayById(RelayId::VAlarmLights)->turnOn(config.getLightsAlarmTimeSec()*1000);
+          messenger.sendMessage(MSG_INTEGRA_ALARM_TRIGGER, MSG_TITLE_ALARM);
+          break;
+        case ActionId::IntegraAlarmOff:
+          IntCtrlRelay::GetRelayById(RelayId::VAlarmLights)->turnOff();
+          break;
+        case ActionId::IntegraArmed:
+          messenger.sendMessage(MSG_ALARM_ARMED, MSG_TITLE_ALARM, messenger.getDateTime());
+          IntCtrlRelay::alarmArmedBlockedInternalSensors->clear();
+          break;
+        case ActionId::IntegraDisarmed:
+          messenger.sendMessage(MSG_ALARM_DISARMED, MSG_TITLE_ALARM, messenger.getDateTime());
+          IntCtrlRelay::alarmArmedBlockedInternalSensors->clear();
+          break;
+        case ActionId::DoorBell:
+          messenger.sendMessage(MSG_GATE_BELL, MSG_TITLE_DOORSTATION, messenger.getDateTime());
+          break;
+        case HoodOn:
+          IntCtrlRelay::GetRelayById(RelayId::AirVent_HoodMode)->turnOn();
+          IntCtrlRelay::hoodModeStart = millis();
+          break;
+        case HoodOff:
+          IntCtrlRelay::GetRelayById(RelayId::AirVent_HoodMode)->turnOff();
+          IntCtrlRelay::hoodModeStart = 0;
+          break;
+         case OpenGate:
+          display.setupAction(ActionIconId::GATE_OPEN);
+          break;
+        case OpenFrontDoor:
+          display.setupAction(ActionIconId::FRONT_DOOR_OPEN);
+          break;
+        case ManualBoostMode:
+          SUPLA_LOG_DEBUG("Manual boost mode activated");
+          messenger.sendMessage(MSG_AIRVENT_BOOST_ACTIVATED, MSG_TITLE_ALARM); 
+          IntCtrlRelay::GetBoostRelay()->turnOn(config.getAirVentBoostTimeMin()*60*1000);
+          break;
+        case HumidityExceeded1:  
+          if (!IntCtrlRelay::GetBoostRelay()->isOnOrPaused()) {
+            SUPLA_LOG_DEBUG("Humidity1 exceeded - boost mode activated");
+            IntCtrlRelay::GetBoostRelay()->turnOn();
+          } else
+             SUPLA_LOG_DEBUG("Humidity1 exceeded - boost mode already activated");
+          break;
+        case HumidityNominal1:
+          IntCtrlRelay::GetBoostRelay()->getRemainingCountdownTimerSec(&remainingSeconds);
+          if (IntCtrlRelay::GetBoostRelay()->isOnOrPaused() && remainingSeconds==0 && 
+              !IntCtrlRelay::GetRelayById(RelayId::AirVent_HumidityExceeded2)->isOn() &&
+              !IntCtrlRelay::GetRelayById(RelayId::AirVent_AirQualityLow)->isOn()) {
+                SUPLA_LOG_DEBUG("Humidity1 nominal - boost mode deactivated");
+                IntCtrlRelay::GetBoostRelay()->turnOff();
+          } else 
+            SUPLA_LOG_DEBUG("Humidity1 nominal - cannot deactivate");
+          break;
+        case HumidityExceeded2:
+          if (!IntCtrlRelay::GetBoostRelay()->isOnOrPaused()) {
+            SUPLA_LOG_DEBUG("Humidity2 exceeded - boost mode activated");
+            IntCtrlRelay::GetBoostRelay()->turnOn();
+          } else
+             SUPLA_LOG_DEBUG("Humidity1 exceeded - boost mode already activated");
+          break;
+        case HumidityNominal2:
+          IntCtrlRelay::GetBoostRelay()->getRemainingCountdownTimerSec(&remainingSeconds);
+          if (IntCtrlRelay::GetBoostRelay()->isOnOrPaused() && remainingSeconds==0 && 
+              !IntCtrlRelay::GetRelayById(RelayId::AirVent_HumidityExceeded1)->isOn() &&
+              !IntCtrlRelay::GetRelayById(RelayId::AirVent_AirQualityLow)->isOn()) {
+                SUPLA_LOG_DEBUG("Humidity2 nominal - boost mode deactivated");
+                IntCtrlRelay::GetBoostRelay()->turnOff();
+          } else 
+            SUPLA_LOG_DEBUG("Humidity2 nominal - cannot deactivate");
+          break;
+        case AirConditionLow:         
+          if (!IntCtrlRelay::GetBoostRelay()->isOnOrPaused()) {
+            SUPLA_LOG_DEBUG("Air condition low - boost mode activated");
+            IntCtrlRelay::GetBoostRelay()->turnOn();
+          } else
+             SUPLA_LOG_DEBUG("Air condition low - boost mode already activated");
+          break;
+        case AirConditionNominal:
+          IntCtrlRelay::GetBoostRelay()->getRemainingCountdownTimerSec(&remainingSeconds);
+          if (!IntCtrlRelay::GetBoostRelay()->isOnOrPaused() && remainingSeconds==0 && 
+              !IntCtrlRelay::GetRelayById(RelayId::AirVent_HumidityExceeded1)->isOn() &&
+              !IntCtrlRelay::GetRelayById(RelayId::AirVent_HumidityExceeded2)->isOn()) {
+                SUPLA_LOG_DEBUG("Air condition nominal - boost mode deactivated");
+                IntCtrlRelay::GetBoostRelay()->turnOff();
+          } else 
+            SUPLA_LOG_DEBUG("Air condition nominal - cannot deactivate");
+          break;
+        case LightTimeCheckOn:
+          if (lightPressTimestamp+3000>millis()) { // filtruj podwójne zdarzenia      
+            SUPLA_LOG_DEBUG("light trigger press filtered at %d (interval %d)", millis(), millis()-lightPressTimestamp);
+            lightPressTimestamp = 0;
+            break; 
+          }
+          lightPressTimestamp = millis();
+          SUPLA_LOG_DEBUG("light trigger press at %d", lightPressTimestamp);
+          break;
+        case LightTimeCheckOff:
+          if (lightPressTimestamp ==0) break;
+          int32_t releaseTime = millis();
+          SUPLA_LOG_DEBUG("light trigger release at %d (on time: %d)", releaseTime, releaseTime-lightPressTimestamp);
+          if (releaseTime-lightPressTimestamp<800) {
+            IntCtrlRelay::lightsOnSensor->set();
+            display.setupAction(ActionIconId::LIGHTS_ON);
+            SUPLA_LOG_DEBUG("light on action detected");
+          } else if (releaseTime-lightPressTimestamp>=2000) {
+            IntCtrlRelay::lightsOffSensor->set();
+            display.setupAction(ActionIconId::LIGHTS_OFF);
+            SUPLA_LOG_DEBUG("light off action detected");
+          } else if (releaseTime-lightPressTimestamp>=800 && releaseTime-lightPressTimestamp<2000) {
+            IntCtrlRelay::alarmArmedBlockedInternalSensors->set();
+            messenger.sendMessage(MSG_ALARM_BLOCADES, MSG_TITLE_ALARM);
+            SUPLA_LOG_DEBUG("alarm sensors blocked action detected");
+          }
+          break;
+      }
+    }
+} intCtrlActionHandler;
 
+#define INVERT_LOGIC true
+#define HIGH_IS_ON true
+
+void IntCtrlRelay::RegisterRelays() {
   auto button = new Supla::Control::Button(BUTTON_CFG_RELAY_GPIO, true, true);
   button->configureAsConfigButton(&SuplaDevice);
 
@@ -166,11 +254,13 @@ void IntCtrlRelay::RegisterRelays() {
   relay[RelayId::SchedDoorSensorAlarm]->getChannel()->setDefault(SUPLA_CHANNELFNC_POWERSWITCH);
   relay[RelayId::AirVent_HoodMode] = /*new Supla::Control::VirtualRelay();*/ new IntCtrlRelay(3, AirVent_HoodMode);
   relay[RelayId::AirVent_HoodMode]->getChannel()->setDefault(SUPLA_CHANNELFNC_POWERSWITCH);
+  relay[RelayId::AirVent_BoostMode] = /*new Supla::Control::VirtualRelay();*/ new IntCtrlRepeatedRelay(EXTRA_GPIO_2, HIGH_IS_ON);
+  relay[RelayId::AirVent_BoostMode]->getChannel()->setDefault(SUPLA_CHANNELFNC_POWERSWITCH);
   relay[RelayId::FrontDoorOpen] = /*new Supla::Control::VirtualRelay(); */ new IntCtrlRelay(4, FrontDoorOpen);
   relay[RelayId::FrontDoorOpen]->getChannel()->setDefault(SUPLA_CHANNELFNC_CONTROLLINGTHEGATEWAYLOCK);
   relay[RelayId::GateOpen] = /*new Supla::Control::VirtualRelay(); */new IntCtrlRelay(5, GateOpen);
   relay[RelayId::GateOpen]->getChannel()->setDefault(SUPLA_CHANNELFNC_CONTROLLINGTHEGATE);
-  relay[RelayId::GarageOpen] = new ProtectedRelay(EXTRA_GPIO_1, true);/*new Relay(EXTRA_GPIO_1, false);*/
+  relay[RelayId::GarageOpen] = new ProtectedRelay(EXTRA_GPIO_1, HIGH_IS_ON);/*new Relay(EXTRA_GPIO_1, false);*/
   relay[RelayId::GarageOpen]->getChannel()->setDefault(SUPLA_CHANNELFNC_CONTROLLINGTHEGARAGEDOOR);
   relay[RelayId::VHeaters2h] = new IntCtrlSharedRelay(2, VHeaters2h, 2*60*60*1000);
   relay[RelayId::VHeaters2h]->getChannel()->setDefault(SUPLA_CHANNELFNC_POWERSWITCH);
@@ -185,14 +275,17 @@ void IntCtrlRelay::RegisterRelays() {
   relay[RelayId::VRestoreDisplay2] = new Supla::Control::VirtualRelay();
   relay[RelayId::VRestoreDisplay2]->getChannel()->setDefault(SUPLA_CHANNELFNC_POWERSWITCH);
 
-  for (int i = RelayId::_FirstRelay; i<=RelayId::_LastRelay; i++) {
-    //relay[i]->setDefaultStateRestore();
-    relay[i]->getChannel()->setChannelNumber(i);
-    relay[i]->getChannel()->setDefaultIcon(0);
-    relay[i]->setInitialCaption(relayNames[i]);
-  }
-
-  #define INVERT_LOGIC false
+  button = new Supla::Control::Button(AIRVENT_BOOST_BUTTON, false, INVERT_LOGIC);
+  button->setButtonType(Supla::Control::Button::ButtonType::MONOSTABLE);
+  button->setHoldTime(1000);
+  button->setMulticlickTime(350);
+  button->setSwNoiseFilterDelay(150);
+  button->setOnLoadConfigType(Supla::Control::Button::OnLoadConfigType::LOAD_BUTTON_SETUP_ONLY);
+  button->addAction(Supla::TURN_OFF, relay[RelayId::AirVent_BoostMode], Supla::ON_HOLD);
+  button->addAction(ActionId::ManualBoostMode, intCtrlActionHandler, Supla::ON_CLICK_1);
+  auto at = new Supla::Control::ActionTrigger();
+  at->setRelatedChannel(relay[RelayId::AirVent_BoostMode]);
+  at->attach(button);
 
   hoodSensor = new Supla::Sensor::Binary(inPcf, InputId::HoodSensor, false, INVERT_LOGIC);
   hoodSensor->setInitialCaption(sensorName[InputId::HoodSensor]);
@@ -204,7 +297,6 @@ void IntCtrlRelay::RegisterRelays() {
 
   alarmTriggerFromVideoRecorder = new TimedBinarySensor(120, inPcf, InputId::AlarmTriggerFromVideoRecorder, false, INVERT_LOGIC);
   alarmTriggerFromVideoRecorder->setInitialCaption(sensorName[InputId::AlarmTriggerFromVideoRecorder]);
-  //sensor->getChannel()->setDefault(SUPLA_CHANNELFNC_ALARM);
   alarmTriggerFromVideoRecorder->getChannel()->setDefault(SUPLA_CHANNELFNC_BINARY_SENSOR);
   alarmTriggerFromVideoRecorder->getChannel()->setChannelNumber(RelayId::_LastRelay+1+InputId::AlarmTriggerFromVideoRecorder);
   alarmTriggerFromVideoRecorder->addAction(ActionId::VideoAlarmOn, intCtrlActionHandler, Supla::ON_TURN_ON);
@@ -213,7 +305,6 @@ void IntCtrlRelay::RegisterRelays() {
 
   alarmTriggerFromIntegra = new Supla::Sensor::Binary(inPcf, InputId::AlarmTriggerFromIntegra, false, INVERT_LOGIC);
   alarmTriggerFromIntegra->setInitialCaption(sensorName[InputId::AlarmTriggerFromIntegra]);
-  //sensor->getChannel()->setDefault(SUPLA_CHANNELFNC_ALARM);
   alarmTriggerFromIntegra->getChannel()->setDefault(SUPLA_CHANNELFNC_BINARY_SENSOR);
   alarmTriggerFromIntegra->getChannel()->setChannelNumber(RelayId::_LastRelay+1+InputId::AlarmTriggerFromIntegra);
   alarmTriggerFromIntegra->addAction(ActionId::IntegraAlarmOn, intCtrlActionHandler, Supla::ON_TURN_ON);
@@ -240,44 +331,72 @@ void IntCtrlRelay::RegisterRelays() {
   frontDoorBellSensor->addAction(ActionId::DoorBell, intCtrlActionHandler, Supla::ON_TURN_ON);
   frontDoorBellSensor->setFilteringTimeMs(500, true);
 
-  button = new Supla::Control::Button(inPcf, InputId::LightTriggerFromIntegra, true, INVERT_LOGIC);
-  button->setButtonType(Supla::Control::Button::ButtonType::MONOSTABLE);
-  button->setHoldTime(1000);
-  button->setMulticlickTime(350);
-  button->setInitialCaption(sensorName[InputId::LightTriggerFromIntegra]);
-  button->setOnLoadConfigType(Supla::Control::Button::OnLoadConfigType::LOAD_BUTTON_SETUP_ONLY);
-  button->addAction(ActionId::TurnLightsOn, intCtrlActionHandler, Supla::ON_CLICK_1);
-  button->addAction(ActionId::BlockInternalSensors, intCtrlActionHandler, Supla::ON_CLICK_2);
-  button->addAction(ActionId::TurnLightsOff, intCtrlActionHandler, Supla::ON_HOLD);
-  Supla::Control::ActionTrigger* at = new Supla::Control::ActionTrigger();
-  at->getChannel()->setChannelNumber(RelayId::_LastRelay+1+InputId::LightTriggerFromIntegra);
-  at->setInitialCaption(sensorName[InputId::LightTriggerFromIntegra]);
-  at->attach(button);
+  lightTriggerSensor = new Supla::Sensor::Binary(inPcf, InputId::LightTriggerFromIntegra, false, INVERT_LOGIC);
+  lightTriggerSensor->setInitialCaption(sensorName[InputId::LightTriggerFromIntegra]);
+  lightTriggerSensor->getChannel()->setChannelNumber(RelayId::_LastRelay+1+InputId::LightTriggerFromIntegra);
+  lightTriggerSensor->addAction(ActionId::LightTimeCheckOn, intCtrlActionHandler, Supla::ON_TURN_ON);
+  lightTriggerSensor->addAction(ActionId::LightTimeCheckOff, intCtrlActionHandler, Supla::ON_TURN_OFF);
+  
+  lightsOnSensor = new Supla::Sensor::VirtualBinary();
+  lightsOnSensor->setTimeoutDs(30);
+  lightsOnSensor->setUseConfiguredTimeout(true);
+  lightsOnSensor->setInitialCaption(sensorName[InputId::VLightOn]);
+  lightsOnSensor->getChannel()->setDefault(SUPLA_CHANNELFNC_BINARY_SENSOR);
+  lightsOnSensor->getChannel()->setChannelNumber(RelayId::_LastRelay+1+InputId::VLightOn);
+
+  lightsOffSensor = new Supla::Sensor::VirtualBinary();
+  lightsOffSensor->setTimeoutDs(30);
+  lightsOffSensor->setUseConfiguredTimeout(true);
+  lightsOffSensor->setInitialCaption(sensorName[InputId::VLightOff]);
+  lightsOffSensor->getChannel()->setDefault(SUPLA_CHANNELFNC_BINARY_SENSOR);
+  lightsOffSensor->getChannel()->setChannelNumber(RelayId::_LastRelay+1+InputId::VLightOff);
+
+  relay[RelayId::AirVent_HumidityExceeded1] = new Supla::Control::VirtualRelay();
+  relay[RelayId::AirVent_HumidityExceeded1]->getChannel()->setDefault(SUPLA_CHANNELFNC_STAIRCASETIMER);
+  relay[RelayId::AirVent_HumidityExceeded2] = new Supla::Control::VirtualRelay();
+  relay[RelayId::AirVent_HumidityExceeded2]->getChannel()->setDefault(SUPLA_CHANNELFNC_STAIRCASETIMER);
+  relay[RelayId::AirVent_AirQualityLow] = new Supla::Control::VirtualRelay();
+  relay[RelayId::AirVent_AirQualityLow]->getChannel()->setDefault(SUPLA_CHANNELFNC_STAIRCASETIMER);
 
   relay[RelayId::VRestoreDisplay1]->addAction(ActionId::RestoreDisplay, intCtrlActionHandler, Supla::ON_TURN_ON);
   relay[RelayId::VRestoreDisplay2]->addAction(ActionId::RestoreDisplay, intCtrlActionHandler, Supla::ON_TURN_ON);
   relay[RelayId::FrontDoorOpen]->addAction(ActionId::OpenFrontDoor, intCtrlActionHandler, Supla::ON_TURN_ON);
   relay[RelayId::GateOpen]->addAction(ActionId::OpenGate, intCtrlActionHandler, Supla::ON_TURN_ON);
+  relay[RelayId::AirVent_HumidityExceeded1]->addAction(ActionId::HumidityExceeded1, intCtrlActionHandler, Supla::ON_TURN_ON);
+  relay[RelayId::AirVent_HumidityExceeded1]->addAction(ActionId::HumidityNominal1, intCtrlActionHandler, Supla::ON_TURN_OFF);
+  relay[RelayId::AirVent_HumidityExceeded2]->addAction(ActionId::HumidityExceeded2, intCtrlActionHandler, Supla::ON_TURN_ON);
+  relay[RelayId::AirVent_HumidityExceeded2]->addAction(ActionId::HumidityNominal2, intCtrlActionHandler, Supla::ON_TURN_OFF);
+  relay[RelayId::AirVent_AirQualityLow]->addAction(ActionId::AirConditionLow, intCtrlActionHandler, Supla::ON_TURN_ON);
+  relay[RelayId::AirVent_AirQualityLow]->addAction(ActionId::AirConditionNominal, intCtrlActionHandler, Supla::ON_TURN_OFF);
 
+  for (int i = RelayId::_FirstRelay; i<=RelayId::_LastRelay; i++) {
+    if (i<HumidityExceeded1)
+      relay[i]->getChannel()->setChannelNumber(i);
+    else
+      relay[i]->getChannel()->setChannelNumber(i+RelayId::_LastRelay*4);  // workaround pominiecie problemu konflikyu kanałów (nowe kanaly)
+    relay[i]->getChannel()->setDefaultIcon(0);
+    relay[i]->setInitialCaption(relayNames[i]);
+  }
 }
 
 void IntCtrlRelay::InitalizeRelays() {
-  #define RELAY_SETUP(id) \
+  #define RELAY_SETUP(id, time) \
     relay[id]->enableCountdownTimerFunction(); \
-    relay[id]->setStoredTurnOnDurationMs(5000); //konieczne, bo inaczej przekaznik sie wyłącza od razu niezaleznie od ustawienia wartości w turnOn
-//relay[id]->setDefaultStaircaseDurationMs(0);
+    relay[id]->setStoredTurnOnDurationMs(time); //konieczne, bo inaczej przekaznik sie wyłącza od razu niezaleznie od ustawienia wartości w turnOn
   
-  RELAY_SETUP(RelayId::VHeaters2h)
-  RELAY_SETUP(RelayId::VHeaters4h)
-  RELAY_SETUP(RelayId::VHeaters8h)
-  RELAY_SETUP(RelayId::VAlarmLights)
+  RELAY_SETUP(RelayId::VHeaters2h, 5000)
+  RELAY_SETUP(RelayId::VHeaters4h, 5000)
+  RELAY_SETUP(RelayId::VHeaters8h, 5000)
+  RELAY_SETUP(RelayId::VAlarmLights, 5000)
+  RELAY_SETUP(RelayId::AirVent_HumidityExceeded1, config.getAirVentHumidityBoostMaxTimeMin()*60*1000)
+  RELAY_SETUP(RelayId::AirVent_HumidityExceeded2, config.getAirVentHumidityBoostMaxTimeMin()*60*1000)
+  RELAY_SETUP(RelayId::AirVent_AirQualityLow, config.getAirVentLowConditionBoostMaxTimeMin()*60*1000)
 }
-
 
 void IntCtrlRelay::Iterate() {  
   // wysłanie komunikatu o włączonym okapie
-  if (hoodModeStart>0 && hoodModeStart+60*60*1000<millis()) {
-    messenger.sendMessage(MSG_HOOD_TIME_WARNING, MSG_TITLE_HOOD, 60);
+  if (hoodModeStart>0 && hoodModeStart+config.getHoodModeTimeWarningMin()*60*1000<millis()) {
+    messenger.sendMessage(MSG_HOOD_TIME_WARNING, MSG_TITLE_HOOD, config.getHoodModeTimeWarningMin());
     hoodModeStart=0;
   }
 }

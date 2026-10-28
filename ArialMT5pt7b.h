@@ -139,7 +139,7 @@ const GFXglyph ArialMT5pt7b_Glyphs[] PROGMEM  = {
     { 492, 4, 8, 5, 1, -7 },            // char '{' 0x7B (123)
     { 496, 4, 7, 5, 1, -6 },            // char '|' 0x7C (124)
     { 500, 4, 8, 5, 1, -7 },            // char '}' 0x7D (125)
-    { 504, 6, 2, 8, 1, -3 },            // char '~' 0x7E (126)
+    { 504, 6, 2, 8, 1, -3 }            // char '~' 0x7E (126)
 }; // 855 bytes
 
 const GFXfont ArialMT5pt7b PROGMEM  = { (uint8_t*) ArialMT5pt7b_Bitmap, (GFXglyph*) ArialMT5pt7b_Glyphs, 32, 126, 11 };

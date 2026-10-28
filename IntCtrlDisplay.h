@@ -49,7 +49,7 @@ class IntCtrlDisplay : public Adafruit_SSD1306 {
     void displayConfig();
     void drawDisplay();
     void drawSensor();
-    void drawHood();
+    void drawAirVentMode();
     void drawIcons();
     void drawActionIcon();
     bool getInitialized() { return initialized; };

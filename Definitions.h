@@ -1,13 +1,13 @@
 #ifndef DEFINITIONS_H
 #define DEFINITIONS_H
 
-
-#define MY_DEVICE_NAME     "KC868-A6 Kontroler integracyjny"
-#define MY_WIFI_NAME "SUPLA-KC868-A6"
-#define MAX_SENSOR_AMOUNT 16
-
+//#define DEBUG
 //#define TEST_BOARD
 #define PROD_BOARD
+
+#define MY_DEVICE_NAME    "KC868-A6 Kontroler integracyjny"
+#define MY_WIFI_NAME      "SUPLA-KC868-A6"
+#define MAX_SENSOR_AMOUNT 16
 
 // Definicje I2C
 #ifdef TEST_BOARD
@@ -23,8 +23,8 @@
 #define PCF_RELAYS_ADDR 0x20  // Ekspander wyjściowy (Przekaźniki)
 #define PCF_INPUTS_ADDR 0x22  // Ekspander wejściowy (Wejścia cyfrowe)
 
-#define ONE_WIRE_GPIO 32  // io nr 1
-#define EXTRA_BUTTON 33  // io nr 2
+#define ONE_WIRE_GPIO 33  // io nr 2
+#define AIRVENT_BOOST_BUTTON 32  // io nr 1
 #ifdef TEST_BOARD
    #define EXTRA_GPIO_1 2 // niebieska dioda
 #endif
@@ -35,11 +35,11 @@
 #define EXTRA_GPIO_3 23 // spi mosi
 
 /*
-złącze nRF24L01:
-x                   -     SPI MISO (GPIO19)
-SPI MOSI (GPIO23)   -     SPI CLK (GPIO18)
-SPI CS              -     CE_S
-3V                  -     GND 
+złącze nRF24L01 w KC668-A6 (orientacja od dołu przekaźniki, od góry wejścia):
+GND                 -     3V
+CE_S                -     SPI CS
+SPI CLK (GPIO18)    -     SPI MOSI (GPIO23)
+SPI MISO (GPIO19)   -     x 
 */
 
 // przycisk sprzetowy wejscia w konfiguracje
@@ -62,8 +62,5 @@ SPI CS              -     CE_S
 #define SENSOR_PAGE_TIME 5000
 #define DISPLAY_INTERVAL 250
 
-#define ALARM_LIGHTS_TIME_S 120
-
-//#define DEBUG
 
 #endif // DEFINITIONS_H

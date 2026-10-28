@@ -23,12 +23,22 @@ class IntCtrlSection : public Supla::HtmlElement {
 class IntCtrlConfig  : public Supla::LittleFsConfig {
   private:
     uint8_t telnetDebug;
+    int32_t hoodModeTimeWarningMin;
+    int32_t airVentManualBoostTimeMin;
+    int32_t airVentHumidityBoostMaxTimeMin;
+    int32_t airVentLowConditionBoostMaxTimeMin;
+    int32_t lightsAlarmTimeSec;
     char sensorNames[8][17];
     Supla::Network *network;
 
   public:
     IntCtrlConfig() : Supla::LittleFsConfig(2048)  {
       telnetDebug = 0;
+      airVentManualBoostTimeMin = 15;
+      airVentHumidityBoostMaxTimeMin = 30;
+      airVentLowConditionBoostMaxTimeMin = 60;
+      hoodModeTimeWarningMin = 60;
+      lightsAlarmTimeSec = 120;
       network = nullptr;
       char defaultName[17];
       for (int i=0; i<8; i++) {
@@ -37,7 +47,12 @@ class IntCtrlConfig  : public Supla::LittleFsConfig {
       }
     };
     bool getTelnetDebug() { return telnetDebug>0; };
-    
+    int32_t getAirVentBoostTimeMin() { return airVentManualBoostTimeMin; };
+    int32_t getAirVentHumidityBoostMaxTimeMin() { return airVentHumidityBoostMaxTimeMin; };
+    int32_t getAirVentLowConditionBoostMaxTimeMin() { return airVentLowConditionBoostMaxTimeMin; };
+    int32_t getHoodModeTimeWarningMin() { return hoodModeTimeWarningMin; };
+    int32_t getLightsAlarmTimeSec() { return lightsAlarmTimeSec; };
+
     char* getSensorName(int32_t id) { return sensorNames[id]; };
     
     bool isNetReady() {

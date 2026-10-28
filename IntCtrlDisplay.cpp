@@ -84,20 +84,37 @@ void IntCtrlDisplay::iterate() {
   drawIcons();
   if (!drawAlert()) {
     drawSensor();
-    drawHood();
+    drawAirVentMode();
     drawActionIcon();
     drawNetworkIcon();
   }
   display();
 }
 
-void IntCtrlDisplay::drawHood() {
+void IntCtrlDisplay::drawAirVentMode() {
   if (IntCtrlRelay::IsHoodActive()) {
     drawBitmap(0, 22, hood_bits[frameId%4], 18, 18, WHITE_COLOR);
     if (IntCtrlRelay::IsAirVentHoodModeActive())
       drawBitmap(0, 43, airvent_bits[1+frameId%2], 18, 21, WHITE_COLOR);
     else
-      drawBitmap(0, 43, airvent_bits[0], 18, 21, WHITE_COLOR); }
+      drawBitmap(0, 43, airvent_bits[0], 18, 21, WHITE_COLOR); 
+  } else if (IntCtrlRelay::IsAirVentHoodModeActive())  
+    drawBitmap(0, 43, airvent_bits[1+frameId%2], 18, 21, WHITE_COLOR);
+  else if (IntCtrlRelay::IsAirVentBoostModeActive()) {
+    uint32_t timeRemaining = IntCtrlRelay::GetBoostRelay()->getAirBoostRemainingTime();
+    if (timeRemaining>0) {
+      char timeStr[6];
+      snprintf(timeStr, sizeof(timeStr), "%dm", timeRemaining/60);
+      setFont(&ArialMT5pt7b);
+      setCursor(2, 32);
+      setTextColor(WHITE_COLOR);
+      printf(timeStr);
+    }
+    if (frameId%2)
+      drawBitmap(0, 43, airvent_bits[2], 18, 21, WHITE_COLOR);
+    else
+      drawBitmap(0, 35, airvent_boost_bits, 18, 29, WHITE_COLOR);
+  }
 }
 
 void IntCtrlDisplay::drawIcons() {
@@ -359,3 +376,4 @@ void IntCtrlDisplay::dimContrast() {
     screenOff = true;
   }
 };
+

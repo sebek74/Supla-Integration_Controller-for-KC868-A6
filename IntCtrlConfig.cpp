@@ -38,6 +38,11 @@ extern RTC_DS3231* rtc;
 extern IntCtrlSensors sensors;
 
 #define TELNET_DEBUG "TELNET_DBG"
+#define HOOD_WARNING_TIME "HOOD_TIME"
+#define AIR_BOOST_TIME "BOOST_TIME"
+#define AIR_BOOST_HUMIDITY_MAX_TIME "HUM_TIME"
+#define AIR_BOOST_LOWCONDITION_MAX_TIME "COND_TIME"
+#define LIGHTS_ALARM_TIME "LIGHTS_TIME"
 #define TEMP_PARAM_HEADER "DALLAS"
 
 class ButtonReset : public Supla::HtmlElement {
@@ -105,7 +110,16 @@ void IntCtrlConfig::initialize() {
   new Supla::Html::DeviceInfo(&SuplaDevice);
   new Supla::Html::WifiParameters();
   new Supla::Html::ProtocolParameters();
-  
+
+  new IntCtrlSection("Parametry kontroli wentylacji");
+  new Supla::Html::CustomParameter(AIR_BOOST_TIME, "Przewietrzanie manualne [min]", airVentManualBoostTimeMin, 5, 30);
+  new Supla::Html::CustomParameter(AIR_BOOST_HUMIDITY_MAX_TIME, "Maksymalny czas dla czujnika wilgotności [min]", airVentHumidityBoostMaxTimeMin, 10, 60);
+  new Supla::Html::CustomParameter(AIR_BOOST_LOWCONDITION_MAX_TIME, "Maksymalny czas dla czujnika jakości [min]", airVentLowConditionBoostMaxTimeMin, 10, 180);
+  new Supla::Html::CustomParameter(HOOD_WARNING_TIME, "Czas powiadomienia o włączonym okapie [min]", hoodModeTimeWarningMin, 30, 180);
+
+  new IntCtrlSection("Parametry kontroli alarmu");
+  new Supla::Html::CustomParameter(LIGHTS_ALARM_TIME, "Czas alarmu świateł [s]", lightsAlarmTimeSec, 30, 300);
+
   new IntCtrlSection("Nazwy czujników temperatury");
   for (int i=0; i<sensors.getSensorAmount(); i++) {
     char param[16], address[64];
@@ -135,6 +149,11 @@ void IntCtrlConfig::initialize() {
 }
 
 void IntCtrlConfig::loadStorage() {    
+  this->getInt32(AIR_BOOST_TIME, &airVentManualBoostTimeMin);
+  this->getInt32(AIR_BOOST_HUMIDITY_MAX_TIME, &airVentHumidityBoostMaxTimeMin);
+  this->getInt32(AIR_BOOST_LOWCONDITION_MAX_TIME, &airVentLowConditionBoostMaxTimeMin);
+  this->getInt32(HOOD_WARNING_TIME, &hoodModeTimeWarningMin);
+  this->getInt32(LIGHTS_ALARM_TIME, &lightsAlarmTimeSec);
   this->getUInt8(TELNET_DEBUG, &telnetDebug);
    
   int i = 0;
