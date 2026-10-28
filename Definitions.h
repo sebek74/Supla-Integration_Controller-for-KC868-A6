@@ -24,7 +24,7 @@
 #define PCF_INPUTS_ADDR 0x22  // Ekspander wejściowy (Wejścia cyfrowe)
 
 #define ONE_WIRE_GPIO 33  // io nr 2
-#define AIRVENT_BOOST_BUTTON 32  // io nr 1
+#define AIRVENT_HOODMODE_SENSOR 32  // io nr 1
 #ifdef TEST_BOARD
    #define EXTRA_GPIO_1 2 // niebieska dioda
 #endif

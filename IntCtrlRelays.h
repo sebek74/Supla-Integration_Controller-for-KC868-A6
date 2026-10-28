@@ -17,11 +17,11 @@ enum InputId {
   LightTriggerFromIntegra = 2,      // fizyczny sensor, ustawia sensory wirtualne 6,7,8
   AlarmArmament = 3,
   FrontDoorBell = 4,
-  HoodSensor = 5,
+  BoostModeButton = 5,
   VAlarmBlockedInternalSensors = 6,
   VLightOn = 7,
   VLightOff = 8,
-  BoostModeButton = 9,
+  HoodSensor = 9,
 };
 
 enum RelayId {

@@ -38,16 +38,16 @@ const char* relayNames [] {
 };
 
 const char* sensorName [] {
-  "Alarm z rejestrtora",
+  "Alarm z rejestratora",
   "Alarm z Integry",
   "Światła z Integry",
   "Czuwanie alarmu",
   "Dzwonek do furtki",
-  "Czujnik włączenia okapu",
+  "Przycisk przewietrzania",
   "Blokada wewnętrznych czujników",
   "Zapal światła garaż i front",
   "Zgaś światła garaż i front",
-  "Przycisk przewietrzania"
+  "Czujnik włączenia okapu"
 };
 
 extern int32_t frameId;
@@ -275,7 +275,7 @@ void IntCtrlRelay::RegisterRelays() {
   relay[RelayId::VRestoreDisplay2] = new Supla::Control::VirtualRelay();
   relay[RelayId::VRestoreDisplay2]->getChannel()->setDefault(SUPLA_CHANNELFNC_POWERSWITCH);
 
-  button = new Supla::Control::Button(AIRVENT_BOOST_BUTTON, false, INVERT_LOGIC);
+  button = new Supla::Control::Button(inPcf, InputId::BoostModeButton, false, INVERT_LOGIC);
   button->setButtonType(Supla::Control::Button::ButtonType::MONOSTABLE);
   button->setHoldTime(1000);
   button->setMulticlickTime(350);
@@ -287,7 +287,7 @@ void IntCtrlRelay::RegisterRelays() {
   at->setRelatedChannel(relay[RelayId::AirVent_BoostMode]);
   at->attach(button);
 
-  hoodSensor = new Supla::Sensor::Binary(inPcf, InputId::HoodSensor, false, INVERT_LOGIC);
+  hoodSensor = new Supla::Sensor::Binary(AIRVENT_HOODMODE_SENSOR, false, INVERT_LOGIC);
   hoodSensor->setInitialCaption(sensorName[InputId::HoodSensor]);
   hoodSensor->getChannel()->setDefault(SUPLA_CHANNELFNC_BINARY_SENSOR);
   hoodSensor->getChannel()->setChannelNumber(RelayId::_LastRelay+1+InputId::HoodSensor);
